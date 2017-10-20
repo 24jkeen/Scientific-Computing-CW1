@@ -47,6 +47,7 @@ they may also want a more finessed method for the shooting, and potentially for 
 
 may research the extension activities at a later date
 
+edit: i changed the shooting method to look more in the reagion of the orbit we wanted as opposed to find simply the next value that satisfied because that would only be about half an orbit
 
 
 

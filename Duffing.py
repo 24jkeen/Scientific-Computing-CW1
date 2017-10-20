@@ -18,12 +18,12 @@ def Root(ys, x0):
     ig = ys[x0]                                             ## we need to convert this into an index for the list of ys    
     time = ((x0 + steps)*end) / steps
     e = 0.001                                               ## this constant is the error that we will allow in finding
-                                                            ##a value since we do not have a continuous function
+    padding = int(steps / 200)                                                        ##a value since we do not have a continuous function
     happy = False
     while happy == False:                                   ##while we havent found the answer ... 
 
         for i in range(steps):
-            sg = ys[x0 + i + 10]                            ## so the function doesnt find 'itself' because it could be flat at ig
+            sg = ys[x0 + i + int(((w - end) / end * steps)) + padding]                            ## so the function doesnt find 'itself' because it could be flat at ig
 
             if x0 + i + 11 == steps:                        ## avoids indexing errors
                 break
@@ -40,12 +40,12 @@ def Root(ys, x0):
 ######### System constants ##########
 k = 0.05
 g = 0.2
-w = 1
+w = 1.2
 
 ####### Timeings of the integrator ##########
 start = 0
 end = 200
-steps = 2000
+steps = 20000
 
 ######## Integrating ###########
 U0 = [0, 0]                                                 ## Initial values
@@ -63,5 +63,5 @@ plt.xlabel("t")
 plt.ylabel("u")
 plt.title("Damped harmonic oscillator")
 plt.plot(ts,ys);                                            ## plots the solution to the first first order eqn
-plt.plot(ts,Us[:,1]);                                       ## '' but for the second
+#plt.plot(ys,Us[:,1]);                                       ## '' but for the second
 plt.show()
