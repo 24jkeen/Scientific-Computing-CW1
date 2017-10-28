@@ -2,6 +2,7 @@
 
 from numpy import *
 from numpy.matlib import repmat
+from numpy import transpose
 
 
 
@@ -28,12 +29,12 @@ def Cheb(N):
         D = 0
         x = 0
         return (D, x)
-    x = []
+    x = array([])
     c = array(2)
 
     for i in range(N+1):
         if i <= N:
-            x.append(transpose( cos( (pi * i ) / N  )))
+            x = append(x, cos( (pi * i ) / N  ))
         if i == 0:
             pass
         if i == N-1:
@@ -45,16 +46,22 @@ def Cheb(N):
         else:
             c = append(c, (-1)**(i-1))
 
-    X = repmat(x, 1, N+1)
-
+    X = repmat(x,1, N+1)
+    X = X.reshape(N +1, N +1)
+    X = X.transpose() 
     dX = subtract(X , transpose(X))
     
-    #print(c * transpose(1/c))
-    print(size(X))
-    #print( dX + eye(N+1))
-    D = divide((c * transpose(1/c)) , (dX + eye(N)))
+    #print( divide(tensordot(c, (1/c).transpose() , axes = 0 ), dX + eye(N+1)) ) 
+    
+    D = divide(tensordot( c, (1/c).transpose(), axes = 0), (dX + eye(N+1)))
 
-    D = D - diag(sum(transpose(D)))
+
+    
+    D + D.reshape(N+1,N+1)
+    print(diag(sum(D, axis = 1)))
+    print(sum(D, axis = 1))
+    D = D - diag(sum(D, axis = 1  ))
+
     #D = 0 
     return (D, x)
 
