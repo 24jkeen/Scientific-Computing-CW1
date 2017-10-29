@@ -45,7 +45,7 @@ def cheb(N):
    
     D + D.reshape(N+1,N+1)
     D = D - diag(sum(D, axis = 1  ))                                            ## subtracts a diagonal matrix of the sum of each row
-    return (D)
+    return (D, x)
 
 
 
@@ -63,10 +63,24 @@ def testeq(M, N, name):
     error. The parameter name is the name of the test.
     """
     D = abs(M - N)
-    if all(D < 1e-6):
+    if all(D < 0.01):
         print("Passed " + name)
     else:
         print("Failed " + name)
+
+
+
+def testp(M,  name):
+    """
+    
+    """
+    if all(M[len(M)-1] - M[0] < 0.001):
+        print("Failed " + name)
+
+    else:
+        print("Passed " + name)
+
+    
 
 
 def runtests_cheb(cheb):
@@ -100,4 +114,39 @@ def runtests_cheb(cheb):
     testeq(M, N, "test 3")
 
 
-runtests_cheb(cheb)
+def difftests(cheb):
+    """
+    This is a suite of tests that checks to see if the Chebyshev method is working using some known derivatives
+
+    input:      difftests(cheb)
+    output:     passed test1, passed test2, failed test3 etc
+
+    """
+
+    # Test 1
+    D, x = cheb(4)
+    Q = dot(D , cos(x))
+    A = -sin(x)
+    testeq(Q, A, 'test1')
+    testp(Q, "Periodic Test1")
+
+    #Test 2
+    D, x = cheb(10)
+    Q = dot(D , exp(x))
+    A = exp(x)
+    testeq(Q, A, 'test2')
+    testp(Q, 'Periodic Test2')
+
+
+    #Test 3
+    D, x = cheb(5)
+    Q = dot(D , x**2)
+    A = 2 * x
+    testeq(Q, A, 'test3')
+    testp(Q, 'Periodic Test3')
+
+
+def run_cheb(f, N, args):
+    D, x = cheb(N)
+    A = D * f(x)
+
