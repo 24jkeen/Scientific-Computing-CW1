@@ -210,7 +210,7 @@ def difftests(cheb):
 
 
 ######### System constants ##########
-k = 0.05
+k = 1
 g = 0.2
 w = 1.2
 pars = [k, g, w]
@@ -235,41 +235,53 @@ t = linspace(0, 2*pi / w , 500)
 x = scipy.integrate.odeint(Duffing, U0, t, args= (pars,))
 
 ####### Dastardly Plotting ############
-plt.xlabel("t")
-plt.ylabel("u")
-plt.title("Damped harmonic oscillator")
+
 #plt.plot(t, x);                                            ## plots the solution to the first first order eqn
 #plt.plot(ys,Us[:,1]);                                       ## '' but for the second
 #plt.show()
 
 
-def Results( ODE, U0, pars, vary_par, step_size, discretisation, solver):
-
+def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver):
+    incorrect_input = False
     max_x_values = []
     max_x_cheb_values = []
     par_values = [] 
-    for i in range(100):
+    U0 = shooting(ODE, U0, 2*pi/w, pars)
+    t = linspace(0, 2 * pi / w, 501)
+
+    for i in range(max_steps):
         
         pars[vary_par] += step_size
-
         par_values.append( pars[vary_par] )
         
-        U0 = shooting(ODE, U0, 2*pi/w, pars)
-        t = linspace(0, 2 * pi / w, 501)
+
         if discretisation == 'odeint':    
             x = scipy.integrate.odeint(ODE, U0, t, args = (pars,))
             max_x = max(x[1, :])
             max_x_values.append(max_x)
             plt.plot(par_values, max_x_values)
+            plt.xlabel("Varied Parameter")
+            plt.ylabel("x Max")
+            plt.title(" Solving BVP's with odeint ")
 
 
-        else:
+
+        elif discretisation == 'chebyshev':
             x_cheb = run_cheb(ODE, 101, U0, (pars,))    
-            max_x_cheb = max(x_cheb)
+            max_x_cheb = max(x_cheb[1,:] )
             max_x_cheb_values.append(max_x_cheb)
             plt.plot(par_values, max_x_cheb_values)
-
-
+            plt.xlabel("Varied Parameter")
+            plt.ylabel("x Max")
+            plt.title("Solving BVP's with Chebyshev approximations")
+        
+        else:
+            incorrect_input = True
+            
+            
+    if incorrect_input == True:
+        print("Please enter a discretisation: \n 'odeint' \n 'chebyshev")
+        
     plt.show()
 
 
@@ -280,6 +292,6 @@ def run_cheb(f, N, U0, args):
     A_0 = D * f(U0, x, pars)[1]
     return A_0
 
-Results(Duffing, [0, 1], pars, 0, 0.01, 'odeint', 0) 
+Results(Duffing, [0, 1], pars, 1, 0.01, 2000, 'odeint', 0) 
 
 
