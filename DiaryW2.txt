@@ -1,0 +1,25 @@
+Constructing the cheb generator
+
+Copied the matlab code across
+Had a go at 'translating it' had issues with resizing and some incompatible functions
+approached it step by step :
+
+made code that would generate x, then c, then X, then dX, then D
+
+added the docstring / comments
+ran the tests and passed first try
+
+tested a couple examples in Matlab
+Method:
+
+- compute D and x using cheb()
+- e.g. D * sin(x) ~~ cos(x)
+- exp(x)
+- D * exp(x) ~~ exp(x)
+
+Tests in Python time
+
+wrote tests to check our method agains some known derivatives 
+added a further test to include periodic 
+
+with low margin for error at 0.01 for the direct checks and 0.001 for the periodicity
