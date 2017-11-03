@@ -12,41 +12,45 @@ from numpy import transpose
 ######## Define function to integrate in first order form ##########
 
 def Duffing(U, t, pars):
-    
+    """
+        The Duffing equation
+        Takes the form $d^2x/dt^2 + zdx/dt + ax + Bx^3 = gcos(wt) $
+        inputs      Initial conditions U;
+                    time t;
+                    Other parameters z, a, B, g, w
+
+        outputs     2D matrix of y values for the duffing equation
+    """
     return [U[1], -2*pars[0]*U[1] - U[0] + pars[1]*sin(pars[2]*t) - power(U[0],3)]
 
-######## Define shooting method function ###########
-def Root(ys, x0):
-
-    x0 = int(abs( x0 / end)* steps)                         ## The input is a normal time
-    ig = ys[x0]                                             ## we need to convert this into an index for the list of ys    
-    time = ((x0 + steps)*end) / steps
-    e = 0.001                                               ## this constant is the error that we will allow in finding
-    padding = int(steps / 200)                                                        ##a value since we do not have a continuous function
-    happy = False
-    while happy == False:                                   ##while we havent found the answer ... 
-
-        for i in range(steps):
-            sg = ys[x0 + i + int(((w - end) / end * steps)) + padding]  ## so the function doesnt find 'itself' because it could be flat at ig
-
-            if x0 + i + 11 == steps:                        ## avoids indexing errors
-                break
-            
-            if abs(ig - sg) < e:                            ##if initial guess and second guess are within the limit
-                happy = True
-                time = ((x0 + i) * end) / steps             ## tells us when the second 'root' appears 
-                break
-        
-        break
-
-    return [happy, time]
-
 ######### More modely solutions #############
+
 def zeroproblem(x, ODE, T, pars):
+    """
+        Returns an ODE in the form x - dx/dt = e so that e can then be minimised to find a root to the equation
+        inputs      x values
+                    ODE in question
+                    The time period to look for
+                    extra parameters
+
+        outputs     an ODE in a form that can be passed to a root finder
+    """
+    
     return x - scipy.integrate.odeint(ODE, x, [0, T], args = (pars,))[-1, :]
 
 
 def shooting(ODE, x0, T, pars):
+    """
+        Finds the roots of an ODE
+        inputs      ODE in question
+                    An initial guess
+                    The time period to look for
+                    extra parameters for the ODE
+       
+        outputs     a root to the ode if one exists (if the initial guess is too far out of range will return NaN)
+    """
+
+
     xnew, info, ier, mesg = fsolve(zeroproblem, x0, args = (ODE, T, pars), full_output = True)
     if ier == 1:
         return xnew
@@ -193,54 +197,6 @@ def difftests(cheb):
     testp(Q, 'Periodic Test3')
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-######### System constants ##########
-k = 1
-g = 0.2
-w = 1.2
-pars = [k, g, w]
-
-####### Timeings of the integrator ##########
-start = 0
-end = 200
-steps = 20000
-
-######## Integrating ###########
-U0 = [0, 1]                                                 ## Initial values
-ts = linspace(start, end, steps)
-Us = scipy.integrate.odeint(Duffing, U0, ts, args=(pars,))
-ys = Us[:,0]                                                ## Extracts the y axis values
-
-
-######## Shooting method ##########
-U0 = shooting(Duffing, U0, 2*pi/w, pars)
-
-######## Solve for one periodic orbit ########
-t = linspace(0, 2*pi / w , 500)
-x = scipy.integrate.odeint(Duffing, U0, t, args= (pars,))
-
-####### Dastardly Plotting ############
-
-#plt.plot(t, x);                                            ## plots the solution to the first first order eqn
-#plt.plot(ys,Us[:,1]);                                       ## '' but for the second
-#plt.show()
-
-
 def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver):
     incorrect_input = False
     max_x_values = []
@@ -291,6 +247,39 @@ def run_cheb(f, N, U0, args):
     D, x = cheb(N)
     A_0 = D * f(U0, x, pars)[1]
     return A_0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+######### System constants ##########
+k = 1
+g = 0.2
+w = 1.2
+pars = [k, g, w]
+
+######## Shooting method ##########
+U0 = shooting(Duffing, U0, 2*pi/w, pars)
+
+######## Solve for one periodic orbit ########
+t = linspace(0, 2*pi / w , 500)
+x = scipy.integrate.odeint(Duffing, U0, t, args= (pars,))
+
+
+########################################################################
+
 
 Results(Duffing, [0, 1], pars, 1, 0.01, 2000, 'odeint', 0) 
 
