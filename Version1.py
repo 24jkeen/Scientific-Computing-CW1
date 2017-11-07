@@ -262,25 +262,24 @@ def run_cheb(f, N, U0, args):
 
 
 
-
-
 ######### System constants ##########
-k = 1
-g = 0.2
-w = 1.2
+k = 0.1
+g = 0.5
+w = pi
 pars = [k, g, w]
 
+U0 = [0, 1]
 ######## Shooting method ##########
-U0 = shooting(Duffing, U0, 2*pi/w, pars)
+#U0 = shooting(Duffing, U0, 2*pi/w, pars)
 
 ######## Solve for one periodic orbit ########
-t = linspace(0, 2*pi / w , 500)
-x = scipy.integrate.odeint(Duffing, U0, t, args= (pars,))
+#t = linspace(0, 2*pi / w , 500)
+#x = scipy.integrate.odeint(Duffing, U0, t, args= (pars,))
 
 
 ########################################################################
 
 
-Results(Duffing, [0, 1], pars, 1, 0.01, 2000, 'odeint', 0) 
+Results(Duffing, U0 , pars, 1, 0.01, 2000, 'odeint', 0) 
 
 
