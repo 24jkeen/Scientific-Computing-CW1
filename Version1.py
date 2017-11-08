@@ -165,36 +165,83 @@ def runtests_cheb(cheb):
     testeq(M, N, "test 3")
 
 
-def difftests(cheb):
+
+# Tests on the collocation method routines
+
+
+def ode1(x, t, par):
     """
-    This is a suite of tests that checks to see if the Chebyshev method is working using some known derivatives
+    ode1(x, t, par)
 
-    input:      difftests(cheb)
-    output:     passed test1, passed test2, failed test3 etc
+    Return the right-hand-side of the ODE
 
+        x' = sin(pi*t) - x
     """
-
-    # Test 1
-    D, x = cheb(4)
-    Q = dot(D , cos(x))
-    A = -sin(x)
-    testeq(Q, A, 'test1')
-    testp(Q, "Periodic Test1")
-
-    #Test 2
-    D, x = cheb(10)
-    Q = dot(D , exp(x))
-    A = exp(x)
-    testeq(Q, A, 'test2')
-    testp(Q, 'Periodic Test2')
+    return sin(pi*t) - x
 
 
-    #Test 3
-    D, x = cheb(5)
-    Q = dot(D , x**2)
-    A = 2 * x
-    testeq(Q, A, 'test3')
-    testp(Q, 'Periodic Test3')
+def ode2(x, t, par):
+    """
+    ode2(x, t, par)
+
+    Return the right-hand-side of the ODE
+
+        x'' + par[0]*x' + par[1]*x = sin(pi*t)
+    """
+    return [x[1], sin(pi*t) - par[0]*x[1] - par[1]*x[0]]
+
+
+def runtests_ode(collocation):
+    """
+    runtests_ode(collocation)
+
+    Run a small suite of tests on the collocation code provided. E.g.,
+
+        from week5_odetests import runtests_ode
+        runtests_ode(mycollocationcode)
+
+    The collocation function should take the form
+
+        collocation(ode, n, x0, pars)
+
+    where ode is the right-hand-side of the ODE, n is the order of the
+    polynomial to use, x0 is the initial guess at the solution, and pars is the
+    parameters (if any, use [] for none).
+    """
+    # Solve the first ODE on the interval [-1, 1] with no parameters and zeros
+    # as the starting guess; use 21 points across the interval
+    n = 20  # 21 - 1 for the degree of polynomial needed
+    x = cos(pi*arange(0, n+1)/n)  # the Chebyshev collocation points
+    soln1 = collocation(ode1, n, zeros(n+1), [])
+    plt.plot(x, soln1)
+    plt.show()
+    exactsoln1 = 1/(1+pi**2)*sin(pi*x) - pi/(1+pi**2)*cos(pi*x)
+    if linalg.norm(soln1 - exactsoln1) < 1e-3:
+        print("ODE test 1 passed")
+    else:
+        print("ODE test 1 failed")
+
+
+
+def run_cheb(f, N, U0, pars):
+    D, t = cheb(N)
+   
+    def coll(x):
+
+        f_eval = f(x, t, pars)
+        return (dot(D, transpose(x)) - transpose(f_eval) )
+   
+    def reshaped(x):
+        f_eval2 = coll(x)
+        return reshape(coll( reshape(x, [1, (len(x))] )) , [len(x)] )        
+    
+    A_0 = fsolve(reshaped, U0)
+    return A_0
+
+
+
+
+
 
 
 def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver):
@@ -211,7 +258,8 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
         par_values.append( pars[vary_par] )
         
 
-        if discretisation == 'odeint':    
+        if discretisation.upper() == 'ODEINT': 
+            U0 = shooting(ODE, U0, 2*pi/w, pars)
             x = scipy.integrate.odeint(ODE, U0, t, args = (pars,))
             max_x = max(x[1, :])
             max_x_values.append(max_x)
@@ -222,7 +270,8 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
 
 
 
-        elif discretisation == 'chebyshev':
+        if discretisation.upper() == 'CHEBYSHEV':
+            U0 = shooting(ODE, U0, 2*pi/w, pars)
             x_cheb = run_cheb(ODE, 101, U0, (pars,))    
             max_x_cheb = max(x_cheb[1,:] )
             max_x_cheb_values.append(max_x_cheb)
@@ -243,23 +292,9 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
 
 
 
-def run_cheb(f, N, U0, args):
-    D, x = cheb(N)
-    A_0 = D * f(U0, x, pars)[1]
-    return A_0
 
 
-
-
-
-
-
-
-
-
-
-
-
+runtests_ode(run_cheb)
 
 
 ######### System constants ##########
@@ -280,6 +315,6 @@ U0 = [0, 1]
 ########################################################################
 
 
-Results(Duffing, U0 , pars, 1, 0.01, 2000, 'odeint', 0) 
+#Results(Duffing, U0 , pars, 0, 0.01, 2000, 'odeint', 0) 
 
 
