@@ -121,6 +121,8 @@ def testeq(M, N, name):
 
 
 
+
+
 def testp(M,  name):
     """
     
@@ -225,19 +227,25 @@ def runtests_ode(collocation):
 
 def run_cheb(f, N, U0, pars):
     D, t = cheb(N)
-   
-    def coll(x):
+    t = t.reshape(N+1)
+    U0 = U0.reshape(N+1)
 
-        f_eval = f(x, t, pars)
-        return (dot(D, transpose(x)) - transpose(f_eval) )
+    def coll(x):
+        
+        #x = x.reshape(N+1)
+        print(    dot(D, transpose(x)) - f(x, t, pars), [x[0] - x[N  ]] )
+
+        
+        return (dot(D, transpose(x)) - f(x, t, pars), x[0] - x[ N  ] )
    
     def reshaped(x):
-        f_eval2 = coll(x)
-        return reshape(coll( reshape(x, [1, (len(x))] )) , [len(x)] )        
+        #coll(x)[0] 
+        return reshape(     )   
     
-    A_0 = fsolve(reshaped, U0)
+    A_0 = fsolve(coll, U0)
     return A_0
 
+#runtests_ode(run_cheb)
 
 
 
@@ -252,13 +260,12 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
     U0 = shooting(ODE, U0, 2*pi/w, pars)
     t = linspace(0, 2 * pi / w, 501)
 
-    for i in range(max_steps):
-        
-        pars[vary_par] += step_size
-        par_values.append( pars[vary_par] )
-        
+   
+    if discretisation.upper() == 'ODEINT':
+        for i in range(max_steps):
+            pars[vary_par] += step_size
+            par_values.append(pars[vary_par])
 
-        if discretisation.upper() == 'ODEINT': 
             U0 = shooting(ODE, U0, 2*pi/w, pars)
             x = scipy.integrate.odeint(ODE, U0, t, args = (pars,))
             max_x = max(x[1, :])
@@ -270,22 +277,22 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
 
 
 
-        if discretisation.upper() == 'CHEBYSHEV':
-            U0 = shooting(ODE, U0, 2*pi/w, pars)
-            x_cheb = run_cheb(ODE, 101, U0, (pars,))    
-            max_x_cheb = max(x_cheb[1,:] )
-            max_x_cheb_values.append(max_x_cheb)
-            plt.plot(par_values, max_x_cheb_values)
-            plt.xlabel("Varied Parameter")
-            plt.ylabel("x Max")
-            plt.title("Solving BVP's with Chebyshev approximations")
+    if discretisation.upper() == 'CHEBYSHEV':
+        U0 = shooting(ODE, U0, 2*pi/w, pars)
+        x_cheb = run_cheb(ODE, 101, U0, (pars,))    
+        max_x_cheb = max(x_cheb[1,:] )
+        max_x_cheb_values.append(max_x_cheb)
+        plt.plot(par_values, max_x_cheb_values)
+        plt.xlabel("Varied Parameter")
+        plt.ylabel("x Max")
+        plt.title("Solving BVP's with Chebyshev approximations")
+    
+    else:
+        incorrect_input = True
         
-        else:
-            incorrect_input = True
             
-            
-    if incorrect_input == True:
-        print("Please enter a discretisation: \n 'odeint' \n 'chebyshev")
+    #if incorrect_input == True:
+    #    print("Please enter a discretisation: \n 'odeint' \n 'chebyshev")
         
     plt.show()
 
@@ -294,7 +301,6 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
 
 
 
-runtests_ode(run_cheb)
 
 
 ######### System constants ##########
@@ -315,6 +321,6 @@ U0 = [0, 1]
 ########################################################################
 
 
-#Results(Duffing, U0 , pars, 0, 0.01, 2000, 'odeint', 0) 
+Results(Duffing, U0 , pars, 0, 0.01, 2000, 'odeint', 0) 
 
 
