@@ -179,7 +179,7 @@ def ode1(x, t, par):
 
         x' = sin(pi*t) - x
     """
-    return sin(pi*t) - x
+    return sin(pi*t) - x     # [:, 0]
 
 
 def ode2(x, t, par):
@@ -214,11 +214,11 @@ def runtests_ode(collocation):
     # as the starting guess; use 21 points across the interval
     n = 20  # 21 - 1 for the degree of polynomial needed
     x = cos(pi*arange(0, n+1)/n)  # the Chebyshev collocation points
-    soln1 = collocation(ode1, n, zeros(n+1), [])
+    soln1 = collocation(ode1, n, zeros(2*(n+1)), [])
     plt.plot(x, soln1)
     plt.show()
     exactsoln1 = 1/(1+pi**2)*sin(pi*x) - pi/(1+pi**2)*cos(pi*x)
-    if linalg.norm(soln1 - exactsoln1) < 1e-3:
+    if linalg.norm(soln1 - exactsoln1) < 1e-6:
         print("ODE test 1 passed")
     else:
         print("ODE test 1 failed")
@@ -227,25 +227,37 @@ def runtests_ode(collocation):
 
 def run_cheb(f, N, U0, pars):
     D, t = cheb(N)
-    t = t.reshape(N+1)
-    U0 = U0.reshape(N+1)
-
-    def coll(x):
-        
-        #x = x.reshape(N+1)
-        print(    dot(D, transpose(x)) - f(x, t, pars), [x[0] - x[N  ]] )
-
-        
-        return (dot(D, transpose(x)) - f(x, t, pars), x[0] - x[ N  ] )
-   
-    def reshaped(x):
-        #coll(x)[0] 
-        return reshape(     )   
     
-    A_0 = fsolve(coll, U0)
+    def coll(x, pars):
+                
+        p = zeros([2*(N+1)])
+        h = dot(D, transpose(x)) - transpose(f(x, t, pars))
+        g = x[0] - x[N]
+
+        for i in range(len(2*x)):
+            if i % 2 == 0:
+                p[i] = h[int(i/2)]
+            else:
+                p[i] = g
+
+        return p 
+
+
+    def reshaped(x, pars):
+        
+        return reshape (coll( reshape( x, [2, (N + 1)]), pars ), [2*(N+1), 1]   )
+
+    def new_f(x):
+
+        for i in range(len(2*x)):
+            if i % 2 == 0:
+                pass #[i] = dot(D[i, :], x[i] - 
+    
+    A_0 = fsolve(coll, U0, pars)
     return A_0
 
-#runtests_ode(run_cheb)
+
+runtests_ode(run_cheb)
 
 
 
@@ -259,13 +271,13 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
     par_values = [] 
     U0 = shooting(ODE, U0, 2*pi/w, pars)
     t = linspace(0, 2 * pi / w, 501)
-
+    print(pars)
    
     if discretisation.upper() == 'ODEINT':
         for i in range(max_steps):
             pars[vary_par] += step_size
             par_values.append(pars[vary_par])
-
+            print(i)
             U0 = shooting(ODE, U0, 2*pi/w, pars)
             x = scipy.integrate.odeint(ODE, U0, t, args = (pars,))
             max_x = max(x[1, :])
@@ -310,6 +322,7 @@ w = pi
 pars = [k, g, w]
 
 U0 = [0, 1]
+
 ######## Shooting method ##########
 #U0 = shooting(Duffing, U0, 2*pi/w, pars)
 
@@ -321,6 +334,6 @@ U0 = [0, 1]
 ########################################################################
 
 
-Results(Duffing, U0 , pars, 0, 0.01, 2000, 'odeint', 0) 
+#Results(Duffing, U0 , pars, 1, 0.01, 1120, 'odeint', 0) 
 
 
