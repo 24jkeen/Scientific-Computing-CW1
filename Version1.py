@@ -263,6 +263,9 @@ def run_cheb(f, N, U0, pars, dim):
 def quadratic(x, p):
     return x**2 -p
 
+def cubic(x, p):
+    return x**3 - x - p
+
 
 def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver):
     incorrect_input = False
@@ -279,15 +282,17 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
         par_values.append(pars[vary_par])
 
         x0 = fsolve(ODE, U0, pars)
-
+        max_x_values.append(max(x0))
         pars[vary_par] += step_size
         par_values.append(pars[vary_par])
 
         x1 = fsolve(ODE, x0, pars)
-        
+        max_x_values.append(max(x1))
 
         def augmented( y, args):
-            return append( ODE(y, pars[vary_par]) , args[1]*subtract(y , args[0]))
+
+
+            return append (ODE(y[:-1], y[-1]) , dot(transpose(args[1]), (subtract(y , args[0]))))
 
 
         y0 = append( x0, par_values[0])
@@ -300,58 +305,43 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
          
             y2 = fsolve( augmented, y2hat, args=[y2hat, secant])
 
-            
+             
             
             pars[vary_par] = y2[-1]
-
+            par_values.append(y2[-1])
+            max_x_values.append(max(y2[:-1]))
             y0 = y1
             y1 = y2
         
+        plt.plot(par_values, max_x_values)
+        plt.show()
     else:
         print('something went wrong ...')
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+            
       
 ######### System constants ##########
 k = 0.1
 g = 0.5
 w = pi
-pars = [k, g, w]
+
+t = linspace(0, 2*pi / w, 201)
+
+pars = [t, k, g, w]
 
 U0 = [0, 1]
 
-
-
-######## Shooting method ##########
-#U0 = shooting(Duffing, U0, 2*pi/w, pars)
-
-######## Solve for one periodic orbit ########
-#t = linspace(0, 2*pi / w , 500)
-#x = scipy.integrate.odeint(Duffing, U0, t, ai)rgs= (pars,))
-
-
 ########################################################################
+ODE = Duffing
+U0 = U0 
+pars = pars
+vary_par = 1
+step_size = 0.1
+max_steps = 30
+discretisation = 'shooting'
+solver = 0
 
-p = [1]
-Results(quadratic, 1  , p, 0, -0.1, 3, 'Shooting', 0) 
+
+Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver) 
 
 
