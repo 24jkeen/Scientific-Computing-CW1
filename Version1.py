@@ -229,54 +229,125 @@ def runtests_ode(collocation):
     else:
         print("ODE test 1 failed")
 
-k = 0.1
-g = 0.5
-w = pi
-pars = [k, g, w]
+
+def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
+    """
+    This code runs chebyshev collocation and continuation to approximate a solution to an ODE
+
+    inputs:     f - ODE to solve
+                N - number of Chebyshev points of the second kind
+                U0 - Initial guess at the soltion of dimension [N+1, order of highest derivative in f]
+                pars - extra parameters to pass, [] if none
+                vary_par - the index of the parameter to vary
+                step_size - the size of the first step for the continuation
+                max_steps - the maximum number of points you would like to use during the continuation
+
+    outputs:    
 
 
+    """
 
-def run_cheb(f, N, U0, pars):
-    D, t = cheb(N)
-    
-    def coll(x, pars):
 
-        dim = int(round(size(x) / (N+1)))
+    D, t = cheb(N)                                                          ## Generates chebyshev matrix D and points t
+    par_values = []                                                         ## Initialises two emplty lists to populate later
+    max_x_values = []
+    def coll(x, pars):      
 
-        x = reshape(x, [N+1, dim])        
+        dim = int(round(size(x) / (N+1)))                                   ## Caluclates the order of the highest derivative
         
-        r = dot(D, x)
-
-        Y = zeros_like(x)
-        for i in range(N+1):
-            Y[i, :] = f(x[i, :], t[i], pars)
-
-        h = r - Y
-        h[-1] = x[0] - x[-1]
+        x = reshape(x, [N+1, dim])                                          ## reshape x into the dimensions required
         
-        return h.reshape(size(x),)
+        r = dot(D, x)                                                       ## calculate D . x
+
+        Y = zeros_like(x)                                                   ## create a zero array the shape of x
+        for i in range(N+1):                        
+            Y[i, :] = f(x[i, :], t[i], pars)                                ## populate every row of the above array with the vals of f at t
+
+        h = r - Y                                                           ## make this a list of eqns of the form D.x - f = 0
+        h[-1] = x[0] - x[-1]                                                ## add the periodicity requirement
+        
+        return h.reshape(size(x),)                                          ## reshape into a column vector for fsolve to solve
     
-    A_0 = fsolve(coll, U0, pars)
-    return A_0
+    par_values.append(pars[vary_par])                                       ## keep track of the parameters we are using / varying
 
-
-#runtests_ode(run_cheb)
-
-
-
+    x0 = fsolve(coll, U0, pars)                                             ## solve for the first point
+    print( x0 ) 
+    pars[vary_par] += step_size                                             ## change the parameter we are interested in
+    par_values.append(pars[vary_par])
     
+    max_x_values.append(max(x0[:]))
+    x1 = fsolve(coll, x0, pars)                                             ## solve for that updated set of parameters
+    max_x_values.append(max(x1[:]))
+
+    def augmented( y, args):
+        return append (coll(y[:-1], y[-1]) , dot(transpose(args[1]), (subtract(y , args[0]))))  ## define system of eqns with the pseudo-arclength encoded
+
+
+    y0 = append(x0, par_values[0])                                          ## define the first solutions which allow us to ...
+    y1 = append(x1, par_values[1])
+    for i in range(max_steps):
+        secant = subtract(y1, y0)                                           ## describe a line between the first two points to approximate the next step for the vary_par
+        y2hat = add(y1, secant)
+
+        y2 = fsolve(augmented, y2hat, args = [y2hat, secant])               ## solve for the actual vary_par
+
+        max_x_values.append(max(y2[:-1]))
+        par_values.append(y2[-1])
+
+        y0 = y1                                                             ##change the variables around for the next iteration
+        y1 = y2
+
+    plt.plot(par_values, max_x_values)                                      ##plot the largest x value against all the values for the varied parameter
+    plt.show()
+
+    return 0
+
     
 def quadratic(x, p):
+     
+    """
+    Equation to test the shooting continuation code
+
+    inputs:     x
+                p
+
+    outputs:    x^2 - p
+    """
+
     return x**2 -p
 
 def cubic(x, p):
+    """
+    Equation to test the shooting continuation code
+
+    inputs:     x
+                p
+
+    outputs:    x^3 - x - p
+    """
+
     return x**3 - x - p
 
 
 def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver):
-    incorrect_input = False
+    """
+    This equation runs continuation with a variety of different approaches
+    inputs:     ODE - the ode to solve 
+                U0 - initial guess at the solution (takes different forms depending on the method you choose)
+                pars - extra parameters you would like to pass
+                vary_par - index of the variable to vary that we are interested in
+                step_size - size of step of the continuation
+                max_steps - the maximum number of points you would like for the continuation
+                discretisation - 
+                solver -
+
+    outputs:    
+
+
+    """
+    
     max_x_values = []
-    max_x_cheb_values = []
+   
     par_values = [] 
     
  
@@ -301,6 +372,7 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
             return append (ODE(y[:-1], y[-1]) , dot(transpose(args[1]), (subtract(y , args[0]))))
 
 
+
         y0 = append( x0, par_values[0])
         y1 = append( x1, par_values[1]) 
 
@@ -323,9 +395,9 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
         plt.show()
 
     if discretisation.upper() == 'CHEBYSHEV':
-        N = len(U0) -1
+        N = len(U0)-1
         
-        run_cheb(ODE, N, U0, pars)
+        run_cheb(ODE, N, U0, pars, vary_par, step_size, max_steps)
 
 
 
@@ -346,13 +418,13 @@ pars = [k, g, w]
 U0 = [0, 1]
 
 ########################################################################
-ODE = Duffing
-U0 = U0
-pars = pars
-vary_par = 1
-step_size = 0.1
+ODE = ode1
+U0 = zeros([21,1])
+pars = [1]
+vary_par = 0
+step_size = -0.1 
 max_steps = 30
-discretisation = 'shooting'
+discretisation = 'chebyshev'
 solver = 0
 
 #runtests_ode( run_cheb )
