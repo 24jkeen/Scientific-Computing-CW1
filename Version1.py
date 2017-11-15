@@ -215,11 +215,11 @@ def runtests_ode(collocation):
     # as the starting guess; use 21 points across the interval
     n = 20  # 21 - 1 for the degree of polynomial needed
     
-    dim =0 
+    dim =2 
     
     x = cos(pi*arange(0, dim*(n+1))/n)  # the Chebyshev collocation points
     
-    soln1 = collocation(ode1, n, zeros(1*(n+1)),pars, dim)
+    soln1 = collocation(Duffing, n, zeros(2*(n+1)),pars)
     
     plt.plot(x, soln1)
     plt.show()
@@ -229,15 +229,20 @@ def runtests_ode(collocation):
     else:
         print("ODE test 1 failed")
 
+k = 0.1
+g = 0.5
+w = pi
+pars = [k, g, w]
 
 
 
-def run_cheb(f, N, U0, pars, dim):
+def run_cheb(f, N, U0, pars):
     D, t = cheb(N)
     
     def coll(x, pars):
 
-    
+        dim = int(round(size(x) / (N+1)))
+
         x = reshape(x, [N+1, dim])        
         
         r = dot(D, x)
@@ -259,6 +264,7 @@ def run_cheb(f, N, U0, pars, dim):
 
 
 
+    
     
 def quadratic(x, p):
     return x**2 -p
@@ -315,6 +321,14 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
         
         plt.plot(par_values, max_x_values)
         plt.show()
+
+    if discretisation.upper() == 'CHEBYSHEV':
+        N = len(U0) -1
+        
+        run_cheb(ODE, N, U0, pars)
+
+
+
     else:
         print('something went wrong ...')
         
@@ -327,21 +341,24 @@ w = pi
 
 t = linspace(0, 2*pi / w, 201)
 
-pars = [t, k, g, w]
+pars = [k, g, w]
 
 U0 = [0, 1]
 
 ########################################################################
 ODE = Duffing
-U0 = U0 
+U0 = zeros([ 21, 2])
 pars = pars
 vary_par = 1
 step_size = 0.1
 max_steps = 30
-discretisation = 'shooting'
+discretisation = 'chebyshev'
 solver = 0
 
+runtests_ode( run_cheb )
 
-Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver) 
+
+#Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver) 
+
 
 
