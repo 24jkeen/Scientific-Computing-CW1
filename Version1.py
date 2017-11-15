@@ -168,6 +168,7 @@ def runtests_cheb(cheb):
 
 
 
+
 # Tests on the collocation method routines
 
 
@@ -190,7 +191,7 @@ def ode2(x, t, par):
 
         x'' + par[0]*x' + par[1]*x = sin(pi*t)
     """
-    return [x[1], sin(pi*t) - par[0]*x[1] - par[1]*x[0]]
+    return [x[:, 1], sin(pi*t) - par[0]*x[:, 0] - par[1]*x[:, 0]]
 
 
 def runtests_ode(collocation):
@@ -213,8 +214,13 @@ def runtests_ode(collocation):
     # Solve the first ODE on the interval [-1, 1] with no parameters and zeros
     # as the starting guess; use 21 points across the interval
     n = 20  # 21 - 1 for the degree of polynomial needed
-    x = cos(pi*arange(0, n+1)/n)  # the Chebyshev collocation points
-    soln1 = collocation(ode1, n, zeros(2*(n+1)), [])
+    
+    dim =0 
+    
+    x = cos(pi*arange(0, dim*(n+1))/n)  # the Chebyshev collocation points
+    
+    soln1 = collocation(ode1, n, zeros(1*(n+1)),pars, dim)
+    
     plt.plot(x, soln1)
     plt.show()
     exactsoln1 = 1/(1+pi**2)*sin(pi*x) - pi/(1+pi**2)*cos(pi*x)
@@ -225,43 +231,37 @@ def runtests_ode(collocation):
 
 
 
-def run_cheb(f, N, U0, pars):
+
+def run_cheb(f, N, U0, pars, dim):
     D, t = cheb(N)
     
     def coll(x, pars):
-                
-        p = zeros([2*(N+1)])
-        h = dot(D, transpose(x)) - transpose(f(x, t, pars))
-        g = x[0] - x[N]
 
-        for i in range(len(2*x)):
-            if i % 2 == 0:
-                p[i] = h[int(i/2)]
-            else:
-                p[i] = g
-
-        return p 
-
-
-    def reshaped(x, pars):
+    
+        x = reshape(x, [N+1, dim])        
         
-        return reshape (coll( reshape( x, [2, (N + 1)]), pars ), [2*(N+1), 1]   )
+        r = dot(D, x)
 
-    def new_f(x):
+        Y = zeros_like(x)
+        for i in range(N+1):
+            Y[i, :] = f(x[i, :], t[i], pars)
 
-        for i in range(len(2*x)):
-            if i % 2 == 0:
-                pass #[i] = dot(D[i, :], x[i] - 
+        h = r - Y
+        h[-1] = x[0] - x[-1]
+        
+        return h.reshape(size(x),)
     
     A_0 = fsolve(coll, U0, pars)
     return A_0
 
 
-runtests_ode(run_cheb)
+#runtests_ode(run_cheb)
 
 
 
-
+    
+def quadratic(x, p):
+    return x**2 -p
 
 
 def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver):
@@ -269,52 +269,68 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
     max_x_values = []
     max_x_cheb_values = []
     par_values = [] 
-    U0 = shooting(ODE, U0, 2*pi/w, pars)
-    t = linspace(0, 2 * pi / w, 501)
-    print(pars)
-   
-    if discretisation.upper() == 'ODEINT':
-        for i in range(max_steps):
-            pars[vary_par] += step_size
-            par_values.append(pars[vary_par])
-            print(i)
-            U0 = shooting(ODE, U0, 2*pi/w, pars)
-            x = scipy.integrate.odeint(ODE, U0, t, args = (pars,))
-            max_x = max(x[1, :])
-            max_x_values.append(max_x)
-            plt.plot(par_values, max_x_values)
-            plt.xlabel("Varied Parameter")
-            plt.ylabel("x Max")
-            plt.title(" Solving BVP's with odeint ")
-
-
-
-    if discretisation.upper() == 'CHEBYSHEV':
-        U0 = shooting(ODE, U0, 2*pi/w, pars)
-        x_cheb = run_cheb(ODE, 101, U0, (pars,))    
-        max_x_cheb = max(x_cheb[1,:] )
-        max_x_cheb_values.append(max_x_cheb)
-        plt.plot(par_values, max_x_cheb_values)
-        plt.xlabel("Varied Parameter")
-        plt.ylabel("x Max")
-        plt.title("Solving BVP's with Chebyshev approximations")
     
-    else:
-        incorrect_input = True
+ 
+    t = linspace(0, 2 * pi / w, 501)
+    
+   
+    if discretisation.upper() == 'SHOOTING':
         
+        par_values.append(pars[vary_par])
+
+        x0 = fsolve(ODE, U0, pars)
+
+        pars[vary_par] += step_size
+        par_values.append(pars[vary_par])
+
+        x1 = fsolve(ODE, x0, pars)
+        
+
+        def augmented( y, args):
+            return append( ODE(y, pars[vary_par]) , args[1]*subtract(y , args[0]))
+
+
+        y0 = append( x0, par_values[0])
+        y1 = append( x1, par_values[1]) 
+
+        for i in range(max_steps):
+            secant = subtract(y1 , y0)
+            y2hat = add(y1 , secant)
             
-    #if incorrect_input == True:
-    #    print("Please enter a discretisation: \n 'odeint' \n 'chebyshev")
+         
+            y2 = fsolve( augmented, y2hat, args=[y2hat, secant])
+
+            
+            
+            pars[vary_par] = y2[-1]
+
+            y0 = y1
+            y1 = y2
         
-    plt.show()
-
-
-
-
-
-
-
-
+    else:
+        print('something went wrong ...')
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+      
 ######### System constants ##########
 k = 0.1
 g = 0.5
@@ -323,17 +339,19 @@ pars = [k, g, w]
 
 U0 = [0, 1]
 
+
+
 ######## Shooting method ##########
 #U0 = shooting(Duffing, U0, 2*pi/w, pars)
 
 ######## Solve for one periodic orbit ########
 #t = linspace(0, 2*pi / w , 500)
-#x = scipy.integrate.odeint(Duffing, U0, t, args= (pars,))
+#x = scipy.integrate.odeint(Duffing, U0, t, ai)rgs= (pars,))
 
 
 ########################################################################
 
-
-#Results(Duffing, U0 , pars, 1, 0.01, 1120, 'odeint', 0) 
+p = [1]
+Results(quadratic, 1  , p, 0, -0.1, 3, 'Shooting', 0) 
 
 
