@@ -347,18 +347,18 @@ U0 = [0, 1]
 
 ########################################################################
 ODE = Duffing
-U0 = zeros([ 21, 2])
+U0 = U0
 pars = pars
 vary_par = 1
 step_size = 0.1
 max_steps = 30
-discretisation = 'chebyshev'
+discretisation = 'shooting'
 solver = 0
 
-runtests_ode( run_cheb )
+#runtests_ode( run_cheb )
 
 
-#Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver) 
+Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver) 
 
 
 
