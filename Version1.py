@@ -268,10 +268,12 @@ def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
         
         return h.reshape(size(x),)                                          ## reshape into a column vector for fsolve to solve
     
+     
+
     par_values.append(pars[vary_par])                                       ## keep track of the parameters we are using / varying
 
     x0 = fsolve(coll, U0, pars)                                             ## solve for the first point
-    print( x0 ) 
+ 
     pars[vary_par] += step_size                                             ## change the parameter we are interested in
     par_values.append(pars[vary_par])
     
@@ -288,11 +290,15 @@ def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
     for i in range(max_steps):
         secant = subtract(y1, y0)                                           ## describe a line between the first two points to approximate the next step for the vary_par
         y2hat = add(y1, secant)
+        
+        #print(y2hat)
 
         y2 = fsolve(augmented, y2hat, args = [y2hat, secant])               ## solve for the actual vary_par
 
         max_x_values.append(max(y2[:-1]))
         par_values.append(y2[-1])
+
+        pars[vary_par] = y2[-1]
 
         y0 = y1                                                             ##change the variables around for the next iteration
         y1 = y2
@@ -343,7 +349,6 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
 
     outputs:    
 
-
     """
     
     max_x_values = []
@@ -386,6 +391,7 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
              
             
             pars[vary_par] = y2[-1]
+
             par_values.append(y2[-1])
             max_x_values.append(max(y2[:-1]))
             y0 = y1
@@ -418,9 +424,9 @@ pars = [k, g, w]
 U0 = [0, 1]
 
 ########################################################################
-ODE = ode1
-U0 = zeros([21,1])
-pars = [1]
+ODE = Duffing 
+U0 = zeros([21,2])
+pars = pars
 vary_par = 0
 step_size = -0.1 
 max_steps = 30
