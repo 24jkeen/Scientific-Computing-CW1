@@ -2,11 +2,11 @@
 
 import scipy.integrate 
 import matplotlib.pyplot as plt
-#from math import *
 from scipy.optimize import fsolve
 from numpy import *
 from numpy.matlib import repmat
-#from numpy import transpose
+
+
 
 
 ######## Define function to integrate in first order form ##########
@@ -69,7 +69,7 @@ def ode2(x, t, par):
     """
     return [x[:, 1], sin(pi*t) - par[0]*x[:, 0] - par[1]*x[:, 0]]
 
-######### More modely solutions #############
+######### Numerical Shooting #############
 
 def zeroproblem(x, ODE, T, pars):
     """
@@ -149,7 +149,7 @@ def cheb(N):
     return (D, x)
 
 
-# Tests on the Chebyshev differentiation matrix routines
+# Tests on the Chebyshev differentiation matrix routines by David Barton
 
  
 def testeq(M, N, name):
@@ -171,7 +171,7 @@ def testeq(M, N, name):
 
 def testp(M,  name):
     """
-    
+    tests for periodicity
     """
     if all(M[len(M)-1] - M[0] < 0.001):
         print("Failed " + name)
@@ -301,26 +301,26 @@ def zerocoll(x , pars ):
 
     outputs-    h - column of values that have been converted to the D.t - f = 0 form to be solved
     """
-    N = pars[-1]
+    N = pars[-1]                                ## Extracts N, f, and pars 
     f = pars[-2]
     pars = pars[:-2]
     
-    D, t = cheb(N)
+    D, t = cheb(N)                              ## Computes Chebyshev matrix and points
 
-    dim = int(round(size(x) /(N+1) ))
+    dim = int(round(size(x) /(N+1) ))           ## Calculates the dimensions of this ODE / the order of its highest derivative
 
-    x = reshape(x, [N+1, dim])
+    x = reshape(x, [N+1, dim])                  ## reshape into correct shape
     r = dot(D, x)
 
-    Y = zeros_like(x)
+    Y = zeros_like(x)                           ## creates an array of zeros the same size and shape as x
  
     for i in range(N+1):
-        Y[i, :] = f(x[i, :], t[i], pars[0])
+        Y[i, :] = f(x[i, :], t[i], pars[0])     ##populates the array above
 
     h = r - Y
     h[-1] = x[0] - x[-1]
 
-    h = h.reshape([size(x), ])
+    h = h.reshape([size(x), ])                  ## reshapes the outputs into a single array
     return h 
 
 
@@ -342,19 +342,18 @@ def run_cheb(f, U0, pars, vary_par, step_size, max_steps):
 
 
     """
-    #D, t = cheb(N)                                                          ## Generates chebyshev matrix D and points t
     par_values = []                                                         ## Initialises two emplty lists to populate later
     max_x_values = []
     N = len(U0)-1
 
     par_values.append(pars[vary_par])                                       ## keep track of the parameters we are using / varying
-    x0 = fsolve(zerocoll, U0, [pars, f, N])                                             ## solve for the first point
+    x0 = fsolve(zerocoll, U0, [pars, f, N])                                 ## solve for the first point
  
     pars[vary_par] += step_size                                             ## change the parameter we are interested in
     par_values.append(pars[vary_par])
     
     max_x_values.append(max(x0[1::2]))
-    x1 = fsolve(zerocoll, U0, [pars, f, N])                                             ## solve for that updated set of parameters
+    x1 = fsolve(zerocoll, U0, [pars, f, N])                                 ## solve for that updated set of parameters
     max_x_values.append(max(x1[1::2]))
 
 
@@ -364,9 +363,8 @@ def run_cheb(f, U0, pars, vary_par, step_size, max_steps):
         secant = subtract(y1, y0)                                           ## describe a line between the first two points to approximate the next step for the vary_par
         y2hat = add(y1, secant)
         
-        #print([1, [pars, f, N]]  ) 
         y2 = fsolve(augmented1, y2hat, args = [y2hat, secant, zerocoll, [pars, f, N], vary_par])              ## solve for the actual vary_par
-        #print(i)
+        
         max_x_values.append(max(y2[1:-1:2]))
         par_values.append(y2[-1])
 
@@ -508,7 +506,7 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
 
     """
        
-    if discretisation.upper() == 'NONE':  ## Actually Else:
+    if discretisation.upper() == 'NONE': 
         normal(ODE, U0, pars, vary_par, step_size, max_steps)
 
     if discretisation.upper() == 'CHEBYSHEV':
@@ -516,6 +514,8 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
 
     if discretisation.upper() == 'SHOOTING':
         Shoot(ODE, U0, pars, vary_par, step_size, max_steps)
+
+    
 
             
       
@@ -526,7 +526,6 @@ g = 0.5
 w = 1
 
 pars = [k, g, w]
-
 U0 = [0, 1]
 
 ########################################################################
