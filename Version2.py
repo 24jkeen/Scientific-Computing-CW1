@@ -21,7 +21,53 @@ def Duffing(U, t, pars):
 
         outputs     2D matrix of y values for the duffing equation
     """
-    return [U[1], -2*pars[0]*U[1] - U[0] + pars[1]*sin(pars[2]*t) - power(U[0],3)]
+    return [U[1], -2*0.05*U[1] - pars[0]*U[0] + pars[1]*sin(pars[2]*t) - power(U[0],3)]
+
+def quadratic(x, p):
+     
+    """
+    Equation to test the shooting continuation code
+
+    inputs:     x
+                p
+
+    outputs:    x^2 - p
+    """
+
+    return x**2 -p
+
+def cubic(x, p):
+    """
+    Equation to test the shooting continuation code
+
+    inputs:     x
+                p
+
+    outputs:    x^3 - x - p
+    """
+
+    return x**3 - x - p
+
+def ode1(x, t, par):
+    """
+    ode1(x, t, par)
+
+    Return the right-hand-side of the ODE
+
+        x' = sin(pi*t) - x
+    """
+    return sin(pi*t) - x     # [:, 0]
+
+
+def ode2(x, t, par):
+    """
+    ode2(x, t, par)
+
+    Return the right-hand-side of the ODE
+
+        x'' + par[0]*x' + par[1]*x = sin(pi*t)
+    """
+    return [x[:, 1], sin(pi*t) - par[0]*x[:, 0] - par[1]*x[:, 0]]
 
 ######### More modely solutions #############
 
@@ -172,26 +218,6 @@ def runtests_cheb(cheb):
 # Tests on the collocation method routines
 
 
-def ode1(x, t, par):
-    """
-    ode1(x, t, par)
-
-    Return the right-hand-side of the ODE
-
-        x' = sin(pi*t) - x
-    """
-    return sin(pi*t) - x     # [:, 0]
-
-
-def ode2(x, t, par):
-    """
-    ode2(x, t, par)
-
-    Return the right-hand-side of the ODE
-
-        x'' + par[0]*x' + par[1]*x = sin(pi*t)
-    """
-    return [x[:, 1], sin(pi*t) - par[0]*x[:, 0] - par[1]*x[:, 0]]
 
 
 def runtests_ode(collocation):
@@ -227,12 +253,33 @@ def runtests_ode(collocation):
         print("ODE test 1 passed")
     else:
         print("ODE test 1 failed")
+###############################################################################
 
-def augmented( y, args):
+def plotter( x, y, discretisation  ):
+    if discretisation.upper() == 'NONE':
+        discretisation = 'fsolve()'
+
+    plt.plot(x, y)
+    plt.xlabel('Varied Parameter')
+    plt.ylabel('Max X value')
+    plt.suptitle('Solving BVPs using ' + discretisation.lower().capitalize())
+
+    plt.show()
+
+
+###############################################################################
+def augmented1( y, args):
+    #print(args[-2])
+    
+    
     pars = args[-2]
+    #print(pars)
+    #N = args[-2][-1]
     vary_par = args[-1]
-    pars[vary_par] = y[-1]
+    pars[0][vary_par] = y[-1]
     disc = args[-3]
+    #print(pars)
+    #print( args )
 
     return append (disc(y[:-1], pars) , dot(transpose(args[1]), (subtract(y , args[0]))))  ## define system of eqns with the pseudo-arclength encoded
 
@@ -241,7 +288,7 @@ def augmented( y, args):
 def zerocoll(x , pars ):
     N = pars[-1]
     f = pars[-2]
-    pars = pars[:-3]
+    pars = pars[:-2]
     
     D, t = cheb(N)
 
@@ -251,8 +298,11 @@ def zerocoll(x , pars ):
     r = dot(D, x)
 
     Y = zeros_like(x)
+  
+    #print(pars)
+    #print(pars[0])
     for i in range(N+1):
-        Y[i, :] = f(x[i, :], t[i], pars)
+        Y[i, :] = f(x[i, :], t[i], pars[0])
 
     h = r - Y
     h[-1] = x[0] - x[-1]
@@ -279,20 +329,19 @@ def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
 
 
     """
-    D, t = cheb(N)                                                          ## Generates chebyshev matrix D and points t
+    #D, t = cheb(N)                                                          ## Generates chebyshev matrix D and points t
     par_values = []                                                         ## Initialises two emplty lists to populate later
     max_x_values = []
 
     par_values.append(pars[vary_par])                                       ## keep track of the parameters we are using / varying
-
     x0 = fsolve(zerocoll, U0, [pars, f, N])                                             ## solve for the first point
  
     pars[vary_par] += step_size                                             ## change the parameter we are interested in
     par_values.append(pars[vary_par])
     
-    max_x_values.append(max(x0[:]))
+    max_x_values.append(max(x0[1::2]))
     x1 = fsolve(zerocoll, U0, [pars, f, N])                                             ## solve for that updated set of parameters
-    max_x_values.append(max(x1[:]))
+    max_x_values.append(max(x1[1::2]))
 
 
     y0 = append(x0, par_values[0])                                          ## define the first solutions which allow us to ...
@@ -301,11 +350,10 @@ def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
         secant = subtract(y1, y0)                                           ## describe a line between the first two points to approximate the next step for the vary_par
         y2hat = add(y1, secant)
         
-        #print(y2hat)
-
-        y2 = fsolve(augmented, y2hat, args = [y2hat, secant, zerocoll, [pars, f, N], vary_par])               ## solve for the actual vary_par
-
-        max_x_values.append(max(y2[:-1]))
+        #print([1, [pars, f, N]]  ) 
+        y2 = fsolve(augmented1, y2hat, args = [y2hat, secant, zerocoll, [pars, f, N], vary_par])              ## solve for the actual vary_par
+        #print(i)
+        max_x_values.append(max(y2[1:-1:2]))
         par_values.append(y2[-1])
 
         pars[vary_par] = y2[-1]
@@ -313,36 +361,13 @@ def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
         y0 = y1                                                             ##change the variables around for the next iteration
         y1 = y2
 
-    plt.plot(par_values, max_x_values)                                      ##plot the largest x value against all the values for the varied parameter
-    plt.show()
 
+    plotter(par_values, max_x_values, discretisation)
+   
     return 0
 
     
-def quadratic(x, p):
-     
-    """
-    Equation to test the shooting continuation code
 
-    inputs:     x
-                p
-
-    outputs:    x^2 - p
-    """
-
-    return x**2 -p
-
-def cubic(x, p):
-    """
-    Equation to test the shooting continuation code
-
-    inputs:     x
-                p
-
-    outputs:    x^3 - x - p
-    """
-
-    return x**3 - x - p
 
 
 
@@ -370,7 +395,7 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
     t = linspace(0, 2 * pi / w, 501)
     
    
-    if discretisation.upper() == 'SHOOTING':  ## Actually Else:
+    if discretisation.upper() == 'NONE':  ## Actually Else:
         
         par_values.append(pars[vary_par])
         
@@ -388,28 +413,16 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
         x1 = fsolve(ODE, x0, pars)
         max_x_values.append(max(x1))
         def augmented( y, args):
-
-
             return append (ODE(y[:-1], y[-1]) , dot(transpose(args[1]), (subtract(y , args[0]))))
-
-
-
-
 
         y0 = append( x0, par_values[0])
         y1 = append( x1, par_values[1]) 
         
-
-
         for i in range(max_steps):
             secant = subtract(y1 , y0)
             y2hat = add(y1 , secant)
             
-         
-            
             y2 = fsolve( augmented, y2hat, args=[y2hat, secant])
-
-             
             
             pars[vary_par] = y2[-1]
 
@@ -417,14 +430,9 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
             max_x_values.append(max(y2[:-1]))
             y0 = y1
             y1 = y2
+ 
+        plotter(par_values, max_x_values, discretisation)
         
-        plt.plot(par_values, max_x_values)
-        plt.xlabel('Varied  Parameter')
-        plt.ylabel('Max X Value')
-        plt.suptitle('Solving BVPs with fsolve')
-        plt.show()
-        
-        print(par_values)
 
     if discretisation.upper() == 'CHEBYSHEV':
         N = len(U0)-1
@@ -432,17 +440,49 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
         run_cheb(ODE, N, U0, pars, vary_par, step_size, max_steps)
 
 
-
-    else:
-        print('something went wrong ...')
+    if discretisation.upper() == 'SHOOTING':
         
+        x0 = shooting(ODE, U0, 2*pi*pars[2], pars) 
+
+        pars[vary_par] += step_size
+        par_values.append(pars[vary_par])
+
+        max_x_values.append(max(x0[:]))
+
+        x1 = shooting(ODE, U0, 2*pi*pars[2] ,pars)
+
+        pars[vary_par] += step_size
+        par_values.append(pars[vary_par])
+
+        max_x_values.append(max(x0[:]))
+        
+        y0 = append(x0, par_values[0])
+        y1 = append(x1, par_values[1])
+
+        for i in range(max_steps):
+            secant = subtract(y1, y0)
+            y2hat = add(y1, secant)
+
+            y2 = fsolve(augmented1, U0, args=[y2hat, secant, zeroproblem, (pars, ODE), vary_par])
+
+            max_x_values.append(y2[-1])
+            par_values.append(y2[-1])
+
+            pars[vary_par] = y2[-1]
+
+            y0 = y1
+            y1 = y2
+
+        plotter(par_values, max_x_values, discretisation)
+        
+    __name__ = 0 
             
       
 ######### System constants ##########
 
 k = 0.1
 g = 0.5
-w = pi
+w = 1
 
 t = linspace(0, 2*pi / w, 201)
 
@@ -457,12 +497,22 @@ U0 = zeros([21,2])
 pars = pars
 vary_par = 0
 step_size = 0.1 
-max_steps = 30
+max_steps = 400
 discretisation = 'chebyshev'
 solver = 0
 
-#runtests_ode( zerocoll )
 
 
 Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver) 
+
+
+#if __name__ == '__main__':
+#    ODE = input("Please enter the name of the ODE you would like to investigate...")
+#    U0 = input("Please enter the initial conditions appropriate...")
+#    pars = input("Please enter the parameters for this ODE...")
+#    vary_par = input("Please enter the index of the parameter you would like to vary (0 indexed)...")
+#    step_size = input("Please enter the size of the step you would like to take during continuation...")
+#    max_steps = input("Please enter the maximum number of steps you would like to take during continuation...")
+#    discretisation = input("Please enter the type of discretisation you would like to use( none, chebyshev, shooting)...")
+#    solver = input("Please enter the name of the solver you would like to use (brentq, fsolve)...")
 
