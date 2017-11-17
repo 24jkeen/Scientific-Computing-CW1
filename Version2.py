@@ -253,9 +253,17 @@ def runtests_ode(collocation):
         print("ODE test 1 passed")
     else:
         print("ODE test 1 failed")
+
 ###############################################################################
 
 def plotter( x, y, discretisation  ):
+    """
+    A funciton that plots graphs for use in continuation
+    inputs-     x values
+                y values
+                discretisation - the type of discretisation being used
+    outputs-    a nice graph
+    """
     if discretisation.upper() == 'NONE':
         discretisation = 'fsolve()'
 
@@ -269,23 +277,30 @@ def plotter( x, y, discretisation  ):
 
 ###############################################################################
 def augmented1( y, args):
-    #print(args[-2])
+    """
+    Creates an augmented system of equations containing the pseudo-arclength condition
+    inputs-     y - list of values
+                args - [y2hat, secant, discretisation, [parameters for the ODE, name of ODE, Number of Chebyshev points], index of the parameter to vary]
     
-    
-    pars = args[-2]
-    #print(pars)
-    #N = args[-2][-1]
+    outputs-    the system of equaitons that can be passed to a solver   
+    """
+    pars = args[-2] 
     vary_par = args[-1]
     pars[0][vary_par] = y[-1]
     disc = args[-3]
-    #print(pars)
-    #print( args )
 
     return append (disc(y[:-1], pars) , dot(transpose(args[1]), (subtract(y , args[0]))))  ## define system of eqns with the pseudo-arclength encoded
 
 
 
 def zerocoll(x , pars ):
+    """
+    Defines the ODE using Chebyshev approximations and fits it to a form that can be passed to fsolve
+    inputs-     x - list of values
+                pars - [parameters of the ODE, name of the ODE, Number of Chebyshev points]
+
+    outputs-    h - column of values that have been converted to the D.t - f = 0 form to be solved
+    """
     N = pars[-1]
     f = pars[-2]
     pars = pars[:-2]
@@ -298,9 +313,7 @@ def zerocoll(x , pars ):
     r = dot(D, x)
 
     Y = zeros_like(x)
-  
-    #print(pars)
-    #print(pars[0])
+ 
     for i in range(N+1):
         Y[i, :] = f(x[i, :], t[i], pars[0])
 
@@ -311,9 +324,9 @@ def zerocoll(x , pars ):
     return h 
 
 
+########################################################################################
 
-
-def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
+def run_cheb(f, U0, pars, vary_par, step_size, max_steps):
     """
     This code runs chebyshev collocation and continuation to approximate a solution to an ODE
 
@@ -332,6 +345,7 @@ def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
     #D, t = cheb(N)                                                          ## Generates chebyshev matrix D and points t
     par_values = []                                                         ## Initialises two emplty lists to populate later
     max_x_values = []
+    N = len(U0)-1
 
     par_values.append(pars[vary_par])                                       ## keep track of the parameters we are using / varying
     x0 = fsolve(zerocoll, U0, [pars, f, N])                                             ## solve for the first point
@@ -368,7 +382,114 @@ def run_cheb(f, N, U0, pars, vary_par, step_size, max_steps):
 
     
 
+def normal( ODE, U0, pars, vary_par, step_size, max_steps  ):
+    """
+    Runs continuation using simply fsolve
+    inputs-     ODE - name of ODE
+                U0 - initial guess at the solution
+                pars - parameters of the ODE
+                vary_par - index of the parameter to vary
+                step_size - size of the first step
+                max_steps - the number of iterations of this code
 
+    outputs-    some nice graphs
+
+    """
+
+    max_x_values = []
+
+    par_values = [] 
+
+
+    par_values.append(pars[vary_par])
+    
+    pars = [1]
+    
+    x0 = fsolve(ODE, U0, pars)
+    
+    max_x_values.append(max(x0))
+    pars[vary_par] += -0.1
+    
+    pars = [0.9]
+
+    par_values.append(pars[vary_par])
+
+    x1 = fsolve(ODE, x0, pars)
+    max_x_values.append(max(x1))
+    def augmented( y, args):
+        return append (ODE(y[:-1], y[-1]) , dot(transpose(args[1]), (subtract(y , args[0]))))
+
+    y0 = append( x0, par_values[0])
+    y1 = append( x1, par_values[1]) 
+    
+    for i in range(max_steps):
+        secant = subtract(y1 , y0)
+        y2hat = add(y1 , secant)
+        
+        y2 = fsolve( augmented, y2hat, args=[y2hat, secant])
+        
+        pars[vary_par] = y2[-1]
+
+        par_values.append(y2[-1])
+        max_x_values.append(max(y2[:-1]))
+        y0 = y1
+        y1 = y2
+
+    plotter(par_values, max_x_values, discretisation)
+        
+
+def Shoot( ODE, U0, pars, vary_par, step_size, max_steps):
+    """
+    Runs continuation using shooting
+    inputs-     ODE - name of ODE
+                U0 - initial guess at the solution
+                pars - parameters of the ODE
+                vary_par - index of the parameter to vary
+                step_size - size of the first step
+                max_steps - the number of iterations of this code
+
+    outputs-    some nice graphs
+
+    """
+
+    max_x_values = []
+
+    par_values = []
+
+    x0 = shooting(ODE, U0, 2*pi*pars[2], pars) 
+
+    
+    pars[vary_par] += step_size
+    par_values.append(pars[vary_par])
+
+    max_x_values.append(max(x0[:]))
+
+    x1 = shooting(ODE, U0, 2*pi*pars[2] ,pars)
+
+    pars[vary_par] += step_size
+    par_values.append(pars[vary_par])
+
+    max_x_values.append(max(x0[:]))
+    
+    y0 = append(x0, par_values[0])
+    y1 = append(x1, par_values[1])
+
+    for i in range(max_steps):
+        secant = subtract(y1, y0)
+        y2hat = add(y1, secant)
+
+        y2 = fsolve(augmented1, U0, args=[y2hat, secant, zeroproblem, (pars, ODE), vary_par])
+
+        max_x_values.append(y2[-1])
+        par_values.append(y2[-1])
+
+        pars[vary_par] = y2[-1]
+
+        y0 = y1
+        y1 = y2
+
+    plotter(par_values, max_x_values, discretisation)
+        
 
 
 def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver):
@@ -380,139 +501,46 @@ def Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solv
                 vary_par - index of the variable to vary that we are interested in
                 step_size - size of step of the continuation
                 max_steps - the maximum number of points you would like for the continuation
-                discretisation - 
-                solver -
+                discretisation - none, chebyshev, shooting
+                solver - fsolve, brentq
 
-    outputs:    
+    outputs:    plots some graphs
 
     """
-    
-    max_x_values = []
-   
-    par_values = [] 
-    
- 
-    t = linspace(0, 2 * pi / w, 501)
-    
-   
+       
     if discretisation.upper() == 'NONE':  ## Actually Else:
-        
-        par_values.append(pars[vary_par])
-        
-        pars = [1]
-        
-        x0 = fsolve(ODE, U0, pars)
-        
-        max_x_values.append(max(x0))
-        pars[vary_par] += -0.1
-        
-        pars = [0.9]
-
-        par_values.append(pars[vary_par])
-
-        x1 = fsolve(ODE, x0, pars)
-        max_x_values.append(max(x1))
-        def augmented( y, args):
-            return append (ODE(y[:-1], y[-1]) , dot(transpose(args[1]), (subtract(y , args[0]))))
-
-        y0 = append( x0, par_values[0])
-        y1 = append( x1, par_values[1]) 
-        
-        for i in range(max_steps):
-            secant = subtract(y1 , y0)
-            y2hat = add(y1 , secant)
-            
-            y2 = fsolve( augmented, y2hat, args=[y2hat, secant])
-            
-            pars[vary_par] = y2[-1]
-
-            par_values.append(y2[-1])
-            max_x_values.append(max(y2[:-1]))
-            y0 = y1
-            y1 = y2
- 
-        plotter(par_values, max_x_values, discretisation)
-        
+        normal(ODE, U0, pars, vary_par, step_size, max_steps)
 
     if discretisation.upper() == 'CHEBYSHEV':
-        N = len(U0)-1
-        
-        run_cheb(ODE, N, U0, pars, vary_par, step_size, max_steps)
-
+        run_cheb(ODE, U0, pars, vary_par, step_size, max_steps)
 
     if discretisation.upper() == 'SHOOTING':
-        
-        x0 = shooting(ODE, U0, 2*pi*pars[2], pars) 
+        Shoot(ODE, U0, pars, vary_par, step_size, max_steps)
 
-        pars[vary_par] += step_size
-        par_values.append(pars[vary_par])
-
-        max_x_values.append(max(x0[:]))
-
-        x1 = shooting(ODE, U0, 2*pi*pars[2] ,pars)
-
-        pars[vary_par] += step_size
-        par_values.append(pars[vary_par])
-
-        max_x_values.append(max(x0[:]))
-        
-        y0 = append(x0, par_values[0])
-        y1 = append(x1, par_values[1])
-
-        for i in range(max_steps):
-            secant = subtract(y1, y0)
-            y2hat = add(y1, secant)
-
-            y2 = fsolve(augmented1, U0, args=[y2hat, secant, zeroproblem, (pars, ODE), vary_par])
-
-            max_x_values.append(y2[-1])
-            par_values.append(y2[-1])
-
-            pars[vary_par] = y2[-1]
-
-            y0 = y1
-            y1 = y2
-
-        plotter(par_values, max_x_values, discretisation)
-        
-    __name__ = 0 
             
       
-######### System constants ##########
+######### System constants for Duffing ##########
 
 k = 0.1
 g = 0.5
 w = 1
 
-t = linspace(0, 2*pi / w, 201)
-
 pars = [k, g, w]
-
 
 U0 = [0, 1]
 
 ########################################################################
-ODE = Duffing 
+ODE = Duffing
 U0 = zeros([21,2])
 pars = pars
 vary_par = 0
 step_size = 0.1 
-max_steps = 400
+max_steps = 40
 discretisation = 'chebyshev'
 solver = 0
 
-
+########################################################################
 
 Results( ODE, U0, pars, vary_par, step_size, max_steps, discretisation, solver) 
 
-
-#if __name__ == '__main__':
-#    ODE = input("Please enter the name of the ODE you would like to investigate...")
-#    U0 = input("Please enter the initial conditions appropriate...")
-#    pars = input("Please enter the parameters for this ODE...")
-#    vary_par = input("Please enter the index of the parameter you would like to vary (0 indexed)...")
-#    step_size = input("Please enter the size of the step you would like to take during continuation...")
-#    max_steps = input("Please enter the maximum number of steps you would like to take during continuation...")
-#    discretisation = input("Please enter the type of discretisation you would like to use( none, chebyshev, shooting)...")
-#    solver = input("Please enter the name of the solver you would like to use (brentq, fsolve)...")
 
